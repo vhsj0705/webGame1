@@ -167,10 +167,10 @@ const MAPS = {
     name: '노리아', theme: 'forest', size: 80, warpLv: 1, warpCost: 500, seed: 202,
     town: { x: 40, y: 40, r: 8 }, center: { x: 40, y: 40 },
     npcs: [
-      { id: 'chaos_goblin', name: '카오스 고블린', x: 37.5, y: 37.5, shop: 'chaos', look: { c1: '#4a7a2a', c2: '#e0c040', robe: true, goblin: true } },
-      { id: 'elf_lala', name: '요정 라라', x: 43.5, y: 37.5, shop: 'elfshop', look: { c1: '#3a8a5a', c2: '#c0ffd0', robe: true, hair: '#ffe080' } },
+      { id: 'chaos_goblin', name: '카오스 고블린', x: 43.5, y: 40.5, shop: 'chaos', look: { c1: '#4a7a2a', c2: '#e0c040', robe: true, goblin: true } },
+      { id: 'elf_lala', name: '요정 라라', x: 40.5, y: 43.5, shop: 'elfshop', look: { c1: '#3a8a5a', c2: '#c0ffd0', robe: true, hair: '#ffe080' } },
       { id: 'potion_noria', name: '물약 상인 엘리', x: 37.5, y: 43.5, shop: 'potions', look: { c1: '#8a5aa0', c2: '#f0d0ff', robe: true, hair: '#c07030' } },
-      { id: 'vault_n', name: '창고지기', x: 43.5, y: 43.5, shop: 'vault', look: { c1: '#3a6a3a', c2: '#c0e0a0', robe: true, hair: '#8a4a2a' } }
+      { id: 'vault_n', name: '창고지기', x: 43.5, y: 37.5, shop: 'vault', look: { c1: '#3a6a3a', c2: '#c0e0a0', robe: true, hair: '#8a4a2a' } }
     ],
     spawns: [
       ['goblin', 20, 10, 20], ['chain_scorp', 16, 14, 24], ['elite_goblin', 14, 18, 28], ['beetle', 12, 22, 32],

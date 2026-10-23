@@ -11,6 +11,12 @@ function glowAt(ctx, x, y, r, col, a = 0.5) {
   g.addColorStop(0, col); g.addColorStop(1, 'rgba(0,0,0,0)');
   ctx.globalAlpha = a; ctx.fillStyle = g; ctx.beginPath(); ctx.arc(x, y, r, 0, 7); ctx.fill(); ctx.restore();
 }
+// blend a grayscale material texture into the current path (cloth weave, brushed metal, fur, scales)
+function matOverlay(ctx, name, a) {
+  if (!Textures.ready) return;
+  ctx.save(); ctx.globalCompositeOperation = 'overlay'; ctx.globalAlpha = a;
+  ctx.fillStyle = Textures.pat(ctx, name); ctx.fill(); ctx.restore();
+}
 function limb(ctx, x1, y1, x2, y2, w, col) {
   ctx.strokeStyle = col; ctx.lineWidth = w; ctx.lineCap = 'round';
   ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x2, y2); ctx.stroke();
@@ -77,12 +83,16 @@ function drawHumanoid(ctx, x, y, L, a) {
     const g = ctx.createLinearGradient(-12 * s, 0, 12 * s, 0);
     g.addColorStop(0, shade(body, -0.3)); g.addColorStop(0.5, body); g.addColorStop(1, shade(body, -0.4));
     ctx.fillStyle = g; ctx.beginPath(); ctx.moveTo(-8 * s, -40 * s); ctx.lineTo(8 * s, -40 * s); ctx.lineTo(13 * s + Math.sin(wk) * 2, 0); ctx.lineTo(-13 * s - Math.sin(wk) * 2, 0); ctx.fill();
+    matOverlay(ctx, L.material || 'cloth', 0.8);
     ctx.fillStyle = L.c2; ctx.fillRect(-1.5 * s, -38 * s, 3 * s, 37 * s);
   } else {
     const g = ctx.createLinearGradient(-10 * s, 0, 10 * s, 0);
     g.addColorStop(0, shade(body, -0.35)); g.addColorStop(0.45, shade(body, 0.15)); g.addColorStop(1, shade(body, -0.45));
     ctx.fillStyle = g;
     ctx.beginPath(); ctx.moveTo(-10 * s * big, -40 * s); ctx.lineTo(10 * s * big, -40 * s); ctx.lineTo(8 * s, -18 * s); ctx.lineTo(-8 * s, -18 * s); ctx.fill();
+    const mat = L.material || (L.armored ? 'metal' : L.scaly ? 'scales' : L.bones ? 'grain' : 'cloth');
+    matOverlay(ctx, mat, 0.85);
+    if (mat === 'metal') { const sp = ctx.createLinearGradient(-6 * s, -40 * s, 2 * s, -20 * s); sp.addColorStop(0, 'rgba(255,255,255,0)'); sp.addColorStop(0.5, 'rgba(255,255,255,0.35)'); sp.addColorStop(1, 'rgba(255,255,255,0)'); ctx.fillStyle = sp; ctx.fill(); }
     if (L.bones) { ctx.strokeStyle = '#8a8270'; ctx.lineWidth = 1.5; for (let i = 0; i < 4; i++) { ctx.beginPath(); ctx.moveTo(-7 * s, (-36 + i * 4.5) * s); ctx.lineTo(7 * s, (-36 + i * 4.5) * s); ctx.stroke(); } }
     if (L.armored || L.trim) { ctx.fillStyle = L.trim || L.c2; ctx.fillRect(-10 * s, -22 * s, 20 * s, 3 * s); ctx.fillRect(-2 * s, -39 * s, 4 * s, 18 * s); }
     if (L.armored) { // pauldrons
@@ -100,6 +110,7 @@ function drawHumanoid(ctx, x, y, L, a) {
     ctx.fillStyle = '#c00'; ctx.beginPath(); ctx.arc(3 * s, hy - 1 * s, 2 * s, 0, 7); ctx.fill();
   } else {
     ctx.fillStyle = skin; ctx.beginPath(); ctx.arc(0, hy, 7.5 * s * (L.furry ? 1.2 : 1), 0, 7); ctx.fill();
+    { const hg = ctx.createRadialGradient(-2 * s, hy - 3 * s, 0, 0, hy, 8 * s); hg.addColorStop(0, 'rgba(255,240,220,0.25)'); hg.addColorStop(1, 'rgba(0,0,0,0.35)'); ctx.fillStyle = hg; ctx.fill(); }
     if (L.hair && !L.helm) { ctx.fillStyle = L.hair; ctx.beginPath(); ctx.arc(-1 * s, hy - 2 * s, 8 * s, Math.PI * 0.9, Math.PI * 2.1); ctx.fill(); if (L.longHair) ctx.fillRect(-8 * s, hy - 2 * s, 5 * s, 18 * s); }
     if (L.hood) { ctx.fillStyle = L.c1; ctx.beginPath(); ctx.arc(0, hy - 1 * s, 9.5 * s, Math.PI * 0.85, Math.PI * 2.15); ctx.lineTo(-9 * s, hy + 6 * s); ctx.fill(); }
     if (L.helm) {
@@ -129,7 +140,7 @@ function drawHumanoid(ctx, x, y, L, a) {
     ctx.fillStyle = L.shield; ctx.strokeStyle = L.shieldTrim || '#ccc'; ctx.lineWidth = 2 * s;
     ctx.beginPath(); ctx.moveTo(-14 * s, -38 * s); ctx.lineTo(-4 * s, -38 * s); ctx.lineTo(-4 * s, -24 * s); ctx.quadraticCurveTo(-9 * s, -16 * s, -14 * s, -24 * s); ctx.closePath(); ctx.fill(); ctx.stroke();
   }
-  if (a.hurt > 0) { ctx.globalCompositeOperation = 'source-atop'; ctx.fillStyle = `rgba(255,40,40,${a.hurt * 0.5})`; ctx.fillRect(-30 * s, -70 * s, 60 * s, 72 * s); }
+  if (a.hurt > 0) glowAt(ctx, 0, -24 * s, 30 * s, '#ff2a1a', a.hurt * 0.7);
   ctx.restore();
 }
 
@@ -200,6 +211,7 @@ function drawBeast(ctx, x, y, L, a) {
   ctx.strokeStyle = L.c1; ctx.lineWidth = 3 * s; ctx.beginPath(); ctx.moveTo(-18 * s, -20 * s); ctx.quadraticCurveTo(-28 * s, -26 * s + Math.sin(t * 6) * 4, -30 * s, -34 * s); ctx.stroke();
   const g = ctx.createLinearGradient(0, -30 * s, 0, -8 * s); g.addColorStop(0, shade(L.c1, 0.2)); g.addColorStop(1, shade(L.c1, -0.3));
   ctx.fillStyle = g; ctx.beginPath(); ctx.ellipse(0, -19 * s, 20 * s, 9 * s, 0, 0, 7); ctx.fill();
+  matOverlay(ctx, 'grain', 0.9);
   const atk = a.atk || 0, hx = 20 * s + atk * 8 * s;
   ctx.fillStyle = L.c1; ctx.beginPath(); ctx.ellipse(hx, -25 * s, 9 * s, 7 * s, -0.3, 0, 7); ctx.fill();
   ctx.fillStyle = L.c2; ctx.beginPath(); ctx.moveTo(hx + 4 * s, -24 * s); ctx.lineTo(hx + 15 * s, -21 * s + atk * 4); ctx.lineTo(hx + 4 * s, -18 * s); ctx.fill();
@@ -207,7 +219,7 @@ function drawBeast(ctx, x, y, L, a) {
   ctx.fillStyle = shade(L.c1, -0.2); ctx.beginPath(); ctx.moveTo(hx - 5 * s, -30 * s); ctx.lineTo(hx - 2 * s, -38 * s); ctx.lineTo(hx + 1 * s, -30 * s); ctx.fill();
   if (L.horns) { ctx.fillStyle = '#eee'; ctx.beginPath(); ctx.moveTo(hx, -31 * s); ctx.lineTo(hx + 6 * s, -42 * s); ctx.lineTo(hx + 3 * s, -30 * s); ctx.fill(); }
   ctx.fillStyle = 'rgba(255,255,255,0.12)'; ctx.beginPath(); ctx.ellipse(-2 * s, -24 * s, 14 * s, 3 * s, 0, 0, 7); ctx.fill();
-  if (a.hurt > 0) { ctx.globalCompositeOperation = 'source-atop'; ctx.fillStyle = `rgba(255,40,40,${a.hurt * 0.5})`; ctx.fillRect(-40 * s, -50 * s, 80 * s, 52 * s); }
+  if (a.hurt > 0) glowAt(ctx, 0, -24 * s, 30 * s, '#ff2a1a', a.hurt * 0.7);
   ctx.restore();
 }
 
@@ -226,10 +238,11 @@ function drawFlyer(ctx, x, y, L, a) {
   }
   const g = ctx.createLinearGradient(0, -24 * s, 0, 0); g.addColorStop(0, shade(L.c1, 0.2)); g.addColorStop(1, shade(L.c1, -0.3));
   ctx.fillStyle = g; ctx.beginPath(); ctx.ellipse(0, -12 * s, 13 * s, 9 * s, 0, 0, 7); ctx.fill();
+  matOverlay(ctx, 'scales', 0.7);
   ctx.beginPath(); ctx.ellipse(12 * s + (a.atk || 0) * 6 * s, -18 * s, 7 * s, 6 * s, 0, 0, 7); ctx.fill();
   ctx.fillStyle = '#ff3'; ctx.fillRect(14 * s, -21 * s, 2.5 * s, 2.5 * s);
   ctx.strokeStyle = L.c1; ctx.lineWidth = 3 * s; ctx.beginPath(); ctx.moveTo(-12 * s, -10 * s); ctx.quadraticCurveTo(-22 * s, -4 * s, -26 * s + Math.sin(t * 5) * 3, -14 * s); ctx.stroke();
-  if (a.hurt > 0) { ctx.globalCompositeOperation = 'source-atop'; ctx.fillStyle = `rgba(255,40,40,${a.hurt * 0.5})`; ctx.fillRect(-40 * s, -50 * s, 80 * s, 52 * s); }
+  if (a.hurt > 0) glowAt(ctx, 0, -24 * s, 30 * s, '#ff2a1a', a.hurt * 0.7);
   ctx.restore();
 }
 
@@ -254,12 +267,14 @@ function drawBug(ctx, x, y, L, a) {
     }
     const g = ctx.createRadialGradient(-4 * s, -14 * s, 2, 0, -10 * s, 16 * s); g.addColorStop(0, L.c2); g.addColorStop(1, L.c1);
     ctx.fillStyle = g; ctx.beginPath(); ctx.ellipse(-4 * s, -10 * s, 12 * s, 8 * s, 0, 0, 7); ctx.fill();
+    matOverlay(ctx, 'scales', 0.8);
+    { const sp = ctx.createRadialGradient(-8 * s, -15 * s, 0, -8 * s, -15 * s, 6 * s); sp.addColorStop(0, 'rgba(255,255,255,0.45)'); sp.addColorStop(1, 'rgba(255,255,255,0)'); ctx.fillStyle = sp; ctx.fill(); }
     ctx.fillStyle = L.c1; ctx.beginPath(); ctx.ellipse(9 * s + (a.atk || 0) * 5 * s, -9 * s, 6 * s, 5 * s, 0, 0, 7); ctx.fill();
     ctx.fillStyle = '#f22'; ctx.fillRect(11 * s, -11 * s, 2 * s, 2 * s); ctx.fillRect(13 * s, -10 * s, 1.5 * s, 1.5 * s);
     if (L.shell) { ctx.strokeStyle = 'rgba(0,0,0,0.4)'; ctx.beginPath(); ctx.moveTo(-4 * s, -18 * s); ctx.lineTo(-4 * s, -2 * s); ctx.stroke(); }
     if (L.tail) { ctx.strokeStyle = L.c2; ctx.lineWidth = 3 * s; ctx.beginPath(); ctx.moveTo(-14 * s, -10 * s); ctx.quadraticCurveTo(-26 * s, -30 * s, -8 * s + Math.sin(t * 4) * 2, -32 * s); ctx.stroke(); }
   }
-  if (a.hurt > 0) { ctx.globalCompositeOperation = 'source-atop'; ctx.fillStyle = `rgba(255,40,40,${a.hurt * 0.5})`; ctx.fillRect(-40 * s, -40 * s, 80 * s, 42 * s); }
+  if (a.hurt > 0) glowAt(ctx, 0, -24 * s, 30 * s, '#ff2a1a', a.hurt * 0.7);
   ctx.restore();
 }
 

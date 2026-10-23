@@ -222,7 +222,7 @@ function analyzeChaos(items, p) {
   if (chaos >= 1 && gear.length >= 1 && !bless && !soul && !feather) {
     const valid = gear.every(g => g.lvl >= 4 && idef(g).kind !== 'wings');
     let score = gear.reduce((a, g) => a + itemValue(g), 0);
-    const r = Math.min(0.9, score / 120000 + (chaos - 1) * 0.1);
+    const r = Math.min(0.8, score / 600000 + (chaos - 1) * 0.1);
     return { name: '1차 날개 / 카오스 무기 조합', need: '+4 이상 장비 + 혼돈의 보석 (장비 가치가 높을수록 성공률 상승)', rate: valid ? Math.max(0.05, r) : 0, zen: 100000, ok: valid, type: 'wing1' };
   }
   return { name: '알 수 없는 조합입니다', rate: 0, ok: false };
