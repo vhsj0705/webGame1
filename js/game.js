@@ -56,7 +56,17 @@ function worldOf(sx, sy) { return unIso(sx - W / 2 + G.cam.x, sy - H / 2 + G.cam
 function pathTo(p, tx, ty) {
   if (clearLine(G.map, p.x, p.y, tx, ty)) { p.path = [{ x: tx, y: ty }]; return true; }
   const path = findPath(G.map, p.x, p.y, tx, ty);
-  if (path && path.length) { path[path.length - 1] = G.map.walk(Math.floor(tx), Math.floor(ty)) ? { x: tx, y: ty } : path[path.length - 1]; p.path = path; return true; }
+  if (path && path.length) {
+    path[path.length - 1] = G.map.walk(Math.floor(tx), Math.floor(ty)) ? { x: tx, y: ty } : path[path.length - 1];
+    // string-pulling: skip waypoints that are directly reachable, so paths are straight lines instead of tile zig-zags
+    const pts = [{ x: p.x, y: p.y }, ...path], out = [];
+    for (let i = 0; i < pts.length - 1;) {
+      let j = pts.length - 1;
+      while (j > i + 1 && !clearLine(G.map, pts[i].x, pts[i].y, pts[j].x, pts[j].y)) j--;
+      out.push(pts[j]); i = j;
+    }
+    p.path = out; return true;
+  }
   return false;
 }
 
@@ -179,6 +189,7 @@ function doAttack(targetMon, skillId, point) {
   if (s && !canUseSkill(skillId)) return false;
   if (s) p.mp -= s.mp;
   p.cd = p.attackInterval(); p.anim.atk = 1;
+  p.anim.atkKind = s && s.type === 'aoe_self' && p.cls === 'DK' ? 'spin' : s && (p.cls === 'DW' || ['buff', 'heal'].includes(s.type)) ? 'cast' : null;
   const tx = targetMon ? targetMon.x : point.x, ty = targetMon ? targetMon.y : point.y;
   faceTo(p, tx, ty);
   if (!s) {
@@ -316,17 +327,26 @@ function moveAlong(e, speed, dt) {
   const n = e.path[0];
   const d = dist(e.x, e.y, n.x, n.y), step = speed * dt;
   faceTo(e, n.x, n.y);
+  const moved = Math.min(d, step);
   if (d <= step) { e.x = n.x; e.y = n.y; e.path.shift(); if (!e.path.length) e.path = null; }
   else { e.x += (n.x - e.x) / d * step; e.y += (n.y - e.y) / d * step; }
-  e.anim.walk += dt * speed * 3.2; e.anim.moving = true;
+  // gait phase advances with distance travelled so feet don't slide
+  const before = e.anim.walk || 0;
+  e.anim.walk = before + moved / 2.1 * Math.PI * 2; e.anim.moving = true;
+  if (e === G.player && Math.floor(before / Math.PI) !== Math.floor(e.anim.walk / Math.PI) && G.map.theme !== 'water') {
+    const dc = { snow: '#e8f0ff', dungeon: '#6a5a4a', tower: '#5a4a6a' }[G.map.theme] || '#9a8462';
+    for (let i = 0; i < 3; i++) FX.parts.push({ x: e.x + rand(-0.15, 0.15), y: e.y + rand(-0.15, 0.15), z: 2, vx: rand(-0.3, 0.3), vy: rand(-0.3, 0.3), vz: rand(8, 20), life: 0.5, max: 0.5, col: dc, size: rand(1.5, 3), g: 20, dust: true });
+  }
   return true;
 }
 function updatePlayer(dt) {
   const p = G.player;
-  p.cd -= dt; p.anim.atk = Math.max(0, p.anim.atk - dt * 3); p.anim.hurt = Math.max(0, p.anim.hurt - dt * 3);
+  p.cd -= dt; p.anim.atk = Math.max(0, p.anim.atk - dt * 2.2); p.anim.hurt = Math.max(0, p.anim.hurt - dt * 3);
   if (p.dead) {
-    p.deadT -= dt;
-    if (p.deadT <= 0) { p.dead = false; p.calc(); p.hp = p.maxHp; p.mp = p.maxMp; returnToTown(); }
+    p.deadT -= dt; p.anim.moving = false;
+    p.anim.death = Math.min(1, (p.anim.death || 0) + dt * 1.4);
+    tickAnim(p, dt, 0);
+    if (p.deadT <= 0) { p.dead = false; p.anim.death = 0; p.calc(); p.hp = p.maxHp; p.mp = p.maxMp; returnToTown(); }
     return;
   }
   // buffs
@@ -371,7 +391,8 @@ function updatePlayer(dt) {
     }
   }
   p.anim.moving = false;
-  if (!moveAlong(p, 4.6, dt)) p.anim.walk *= 0.8;
+  moveAlong(p, 4.6, dt);
+  tickAnim(p, dt, 4.6);
   // auto zen pickup
   for (const dr of G.drops) if (dr.zen && dist(p.x, p.y, dr.x, dr.y) < 0.8) { pickupDrop(dr); break; }
   updateHelper(dt);
@@ -399,9 +420,12 @@ function updateMonsters(dt) {
   const p = G.player, map = G.map;
   for (const m of G.monsters) {
     const d = m.def;
-    m.anim.atk = Math.max(0, m.anim.atk - dt * 3); m.anim.hurt = Math.max(0, m.anim.hurt - dt * 3); m.anim.moving = false;
+    m.anim.atk = Math.max(0, m.anim.atk - dt * 2.2); m.anim.hurt = Math.max(0, m.anim.hurt - dt * 3); m.anim.moving = false;
+    tickAnim(m, dt, 0);
     if (m.dead) {
-      m.fade = Math.max(0, m.fade - dt * 0.8);
+      // play the death animation first, then fade the corpse out
+      m.anim.death = Math.min(1, (m.anim.death || 0) + dt * 1.6);
+      if (m.anim.death >= 1) m.fade = Math.max(0, m.fade - dt * 0.7);
       m.respawnT -= dt;
       if (m.respawnT <= 0) {
         const pt = map.randomFloor(m.sx, m.sy, 0, 3);
@@ -451,7 +475,8 @@ function updateMonsters(dt) {
         else if (map.walk(Math.floor(m.x), Math.floor(ny)) && !map.inTown(Math.floor(m.x), Math.floor(ny))) m.y = ny;
         else if (m.state === 'idle') m.wander = 0;
         faceTo(m, tx, ty);
-        m.anim.walk += dt * spd * 3; m.anim.moving = true;
+        const moved = Math.hypot(vx, vy);
+        m.anim.walk += moved / (1.25 * (m.def.look.scale || 1)) * Math.PI * 2; m.anim.moving = true;
       }
     }
   }
@@ -498,6 +523,7 @@ function update(dt) {
   G.time += dt;
   updatePlayer(dt);
   updateMonsters(dt);
+  for (const n of G.npcs) { n.anim.moving = false; tickAnim(n, dt, 0); }
   updateProjectiles(dt);
   FX.update(dt);
   G.drops = G.drops.filter(d => G.time - d.t < 90);
@@ -566,6 +592,10 @@ function render() {
   }
   // drops
   for (const d of G.drops) drawDrop(d);
+  // 3D pass: render every on-screen character into the GL batch first (one GPU sync per frame)
+  G.frame = (G.frame || 0) + 1;
+  const onScreen = e => { const s = screenOf(e.x, e.y); return s.x > -160 && s.x < W + 160 && s.y > -60 && s.y < H + 260; };
+  prepFrame3D([p, ...G.npcs.filter(onScreen), ...G.monsters.filter(m => (!m.dead || m.fade > 0) && onScreen(m))]);
   // sorted drawables
   const list = [];
   for (const o of map.visibleObjects(G.cam, W, H)) list.push({ d: staticDepth(o), o, k: 's' });
@@ -588,7 +618,7 @@ function render() {
     } else if (e.k === 'm') {
       const m = e.o, s = screenOf(m.x, m.y);
       if (s.x < -100 || s.x > W + 100 || s.y < -50 || s.y > H + 150) continue;
-      if (M3.ready) {
+      if (M3.ready && m._r3 && m._r3.f === G.frame) {
         if (m.def.look.glow) glowAt(ctx, s.x, s.y - 30 * (m.def.look.scale || 1), 40 * (m.def.look.scale || 1), m.def.look.glow, 0.25);
         ctx.save(); if (m.dead) ctx.globalAlpha = m.fade; shadowAt(ctx, s.x, s.y, 18 * (m.def.look.scale || 1)); ctx.restore();
         drawMonster3D(ctx, s.x, s.y, m, m.anim, m.dead ? m.fade : null);
@@ -608,8 +638,16 @@ function render() {
   map.drawClouds(ctx, G.cam, W, H, t);
   drawProjectiles();
   // particles
+  for (const q of FX.parts) {
+    if (!q.dust) continue;
+    const s = screenOf(q.x, q.y, q.z);
+    ctx.globalAlpha = Math.max(0, q.life / q.max) * 0.45; ctx.fillStyle = q.col;
+    ctx.beginPath(); ctx.arc(s.x, s.y, q.size * (1.6 - q.life / q.max), 0, 7); ctx.fill();
+  }
+  ctx.globalAlpha = 1;
   ctx.save(); ctx.globalCompositeOperation = 'lighter';
   for (const q of FX.parts) {
+    if (q.dust) continue;
     const s = screenOf(q.x, q.y, q.z);
     ctx.globalAlpha = Math.max(0, q.life / q.max); ctx.fillStyle = q.col;
     ctx.beginPath(); ctx.arc(s.x, s.y, q.size, 0, 7); ctx.fill();

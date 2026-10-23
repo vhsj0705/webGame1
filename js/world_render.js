@@ -3,7 +3,7 @@
 // transitions, ambient occlusion, then affine-projected to isometric.
 // Static objects are pre-rendered into textured sprites.
 // ---------------------------------------------------------------------
-const PXT = 32; // texture texels per tile
+const PXT = 48; // texture texels per tile
 const GROUND = {
   [T.WATER]: { tex: 'water', pri: 0, soft: 0.5 },
   [T.SEA]: { tex: 'sea', pri: 1, soft: 0.6 },
@@ -42,8 +42,9 @@ Object.assign(GameMap.prototype, {
     const paint = (ctx, t) => {
       const G0 = GROUND[t];
       if (G0.fill) { ctx.fillStyle = G0.fill; ctx.fillRect(0, 0, SP, SP); return; }
-      ctx.save(); ctx.translate(-(((ox0 % TS) + TS) % TS), -(((oy0 % TS) + TS) % TS));
-      ctx.fillStyle = Textures.pat(ctx, G0.tex); ctx.fillRect(0, 0, SP + TS, SP + TS); ctx.restore();
+      const S0 = TEX[G0.tex].width;
+      ctx.save(); ctx.translate(-(((ox0 % S0) + S0) % S0), -(((oy0 % S0) + S0) % S0));
+      ctx.fillStyle = Textures.pat(ctx, G0.tex); ctx.fillRect(0, 0, SP + S0, SP + S0); ctx.restore();
     };
     const indicator = (pred, col = [255, 255, 255]) => {
       const sm = scratch('small', NB, NB), sg = sm.getContext('2d'), img = sg.createImageData(NB, NB);
@@ -97,10 +98,10 @@ Object.assign(GameMap.prototype, {
     {
       const dark = this.theme === 'dungeon' || this.theme === 'tower';
       const sm = indicator((x, y) => BLOCK_TILES.has(this.tile(x, y)) && this.tile(x, y) !== T.WATER, [0, 0, 0]);
-      g.save(); g.filter = `blur(${dark ? 12 : 8}px)`; g.globalAlpha = dark ? 0.85 : 0.5; g.imageSmoothingEnabled = true;
+      g.save(); g.filter = `blur(${dark ? 18 : 12}px)`; g.globalAlpha = dark ? 0.85 : 0.5; g.imageSmoothingEnabled = true;
       g.drawImage(sm, -1.5 * PXT, -1.5 * PXT, NB * PXT, NB * PXT); g.restore();
       const sm2 = indicator((x, y) => this.inb(x, y) && !!this.block[this.idx(x, y)], [0, 0, 0]);
-      g.save(); g.filter = 'blur(10px)'; g.globalAlpha = 0.35;
+      g.save(); g.filter = 'blur(15px)'; g.globalAlpha = 0.35;
       g.drawImage(sm2, -1.5 * PXT, -1.5 * PXT, NB * PXT, NB * PXT); g.restore();
     }
     // project to isometric

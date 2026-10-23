@@ -164,6 +164,7 @@
 <script src="js/data.js"></script>
 <script src="js/util.js"></script>
 <script src="js/audio.js"></script>
+<script src="js/texdata.js"></script>
 <script src="js/textures.js"></script>
 <script src="js/world.js"></script>
 <script src="js/world_render.js"></script>
@@ -173,6 +174,6 @@
 <script src="js/models3d.js"></script>
 <script src="js/game.js"></script>
 <script src="js/ui.js"></script>
-<script>Textures.gen(); M3.init(); Title.show('title'); requestAnimationFrame(frame);</script>
+<script>Textures.loadPhotos().then(() => { Textures.gen(); M3.init(); Title.show('title'); requestAnimationFrame(frame); });</script>
 </body>
 </html>

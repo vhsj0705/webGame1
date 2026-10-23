@@ -4,8 +4,11 @@
 그래픽·사운드는 전부 코드(Canvas / WebAudio)로 직접 그렸고, 원작 클라이언트 리소스나 유출 소스는 쓰지 않았습니다.
 
 ## 그래픽
-- 지형·건물·나무: 실행할 때 코드로 사실적인 텍스처(높이 기반 조명, 자연스러운 경계 블렌딩, 그림자)를 생성
-- 캐릭터·몬스터: **Three.js(r149)**로 관절형 3D 모델을 만들고, 8방향 × 대기/걷기/공격 프레임으로 미리 렌더링한 스프라이트를 사용
+- 지형·건물·나무: **Poly Haven의 CC0 사진 텍스처**(풀밭·흙길·자갈길·돌바닥·모래·눈·성벽·벽돌·기와·회벽·나무판·나무껍질·바위)에 높이 기반 음영과 자연스러운 경계 블렌딩, 그림자를 더해 사용
+  - 텍스처는 512px로 줄여 `js/texdata.js`에 내장되어 있어 더블클릭 실행(file://)에서도 동작합니다
+- 캐릭터·몬스터: **Three.js(r149)**로 만든 관절형 3D 모델을 매 프레임 실시간 렌더링
+  - 몸 방향이 부드럽게 회전하고, 대기(호흡·무게중심 이동) / 걷기 / 달리기 / 공격(예비동작→타격→마무리) / 피격 / 사망 동작이 끊김 없이 섞입니다
+  - 가죽·금속 재질에는 사진 텍스처와 노멀맵을 사용하고, 보폭은 이동 거리에 맞춰 발이 미끄러지지 않게 했습니다
   - Three.js는 `js/lib/three.min.js`에 포함되어 있어 인터넷 없이도 3D로 나옵니다 (MIT 라이선스, © Three.js Authors)
   - WebGL을 지원하지 않는 환경에서는 기존 2D 벡터 캐릭터로 자동 전환됩니다
 
@@ -16,6 +19,13 @@
 python -m http.server 8765
 ```
 그 다음 http://localhost:8765 에 접속하세요. 저장 데이터는 브라우저 localStorage에 남습니다.
+
+## 사용한 외부 자료
+- 사진 텍스처: Poly Haven (https://polyhaven.com) — CC0 1.0 (퍼블릭 도메인)
+  leafy_grass, forest_ground_04, stony_dirt_path, cobblestone_floor_08, stone_tiles, aerial_sand, snow_02, rock_tile_floor,
+  clay_roof_tiles_02, plastered_wall_02, medieval_wall_01, castle_brick_07, dark_wooden_planks, bark_brown_02, lichen_rock,
+  brown_leather, metal_plate
+- 3D 엔진: Three.js r149 — MIT License
 
 ## GitHub에서 참고한 자료
 - **OpenMU** (https://github.com/MUnique/OpenMU, MIT 라이선스): C#으로 새로 작성된 MU 서버입니다.

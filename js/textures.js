@@ -330,9 +330,72 @@ const Textures = {
       TEX.clouds = build(i => { const v = 255 - sstep(0.5, 0.75, n[i]) * 110; return [v, v, v]; });
     }
     TEX_NOISE = fbm(8, 4, R(141));
+    this.applyPhotos();
     buildDecals();
     this.ready = true;
     this.ms = Math.round(performance.now() - t0);
+  },
+  // ---------- photo textures (Poly Haven CC0, embedded in texdata.js)
+  photos: {},
+  loadPhotos() {
+    if (typeof PHOTO_TEX === 'undefined') return Promise.resolve();
+    return Promise.all(Object.entries(PHOTO_TEX).map(([k, url]) => new Promise(res => {
+      const im = new Image(); im.onload = () => { this.photos[k] = im; res(); }; im.onerror = res; im.src = url;
+    })));
+  },
+  // resample a photo to 256, add relief lighting from its luminance, tint, then size it to `size`
+  photo(name, size, o = {}) {
+    const im = this.photos[name]; if (!im) return null;
+    const c = document.createElement('canvas'); c.width = c.height = TS;
+    const g = c.getContext('2d'); g.drawImage(im, 0, 0, TS, TS);
+    const img = g.getImageData(0, 0, TS, TS), D = img.data;
+    const lum = new Float32Array(TS * TS);
+    for (let i = 0; i < TS * TS; i++) lum[i] = (D[i * 4] * 0.3 + D[i * 4 + 1] * 0.59 + D[i * 4 + 2] * 0.11) / 255;
+    const sh = o.relief ? lightH(lum, o.relief) : null;
+    const tint = o.tint ? RGB(o.tint) : null, sat = o.sat != null ? o.sat : 1, br = o.bright || 1, ct = o.contrast || 1;
+    for (let i = 0; i < TS * TS; i++) {
+      let r = D[i * 4], gg = D[i * 4 + 1], b = D[i * 4 + 2];
+      const l = r * 0.3 + gg * 0.59 + b * 0.11;
+      r = l + (r - l) * sat; gg = l + (gg - l) * sat; b = l + (b - l) * sat;
+      if (tint) { r = r * tint[0] / 255 * 1.6; gg = gg * tint[1] / 255 * 1.6; b = b * tint[2] / 255 * 1.6; }
+      const k = (sh ? sh[i] : 1) * br;
+      r = ((r / 255 - 0.5) * ct + 0.5) * 255 * k; gg = ((gg / 255 - 0.5) * ct + 0.5) * 255 * k; b = ((b / 255 - 0.5) * ct + 0.5) * 255 * k;
+      D[i * 4] = clamp(r, 0, 255); D[i * 4 + 1] = clamp(gg, 0, 255); D[i * 4 + 2] = clamp(b, 0, 255);
+    }
+    g.putImageData(img, 0, 0);
+    if (size === TS) return c;
+    const out = document.createElement('canvas'); out.width = out.height = size;
+    const og = out.getContext('2d'); og.imageSmoothingQuality = 'high'; og.drawImage(c, 0, 0, size, size);
+    return out;
+  },
+  applyPhotos() {
+    const set = (key, name, size, o) => { const c = this.photo(name, size, o); if (c) TEX[key] = c; };
+    // ground (texture size in texels; PXT texels = 1 tile)
+    set('grass', 'leafy_grass', 160, { relief: 5, sat: 1.25, tint: '#b4e478', bright: 1.08 });
+    set('fgrass', 'forest_ground_04', 176, { relief: 6, bright: 0.95, sat: 1.15 });
+    set('road', 'stony_dirt_path', 176, { relief: 8, bright: 1.3 });
+    set('plaza', 'cobblestone_floor_08', 192, { relief: 9, bright: 1.0, sat: 0.8 });
+    set('stone', 'stone_tiles', 160, { relief: 6, bright: 1.0 });
+    set('sand', 'aerial_sand', 192, { relief: 6 });
+    set('sea', 'aerial_sand', 192, { relief: 6, tint: '#3a8a86', sat: 0.4, bright: 0.75 });
+    set('snow', 'snow_02', 192, { relief: 10, bright: 1.08, sat: 0.6, tint: '#e8f0ff' });
+    set('dfloor', 'rock_tile_floor', 176, { relief: 9, bright: 0.62, sat: 0.7 });
+    set('tfloor', 'rock_tile_floor', 176, { relief: 9, bright: 0.5, sat: 0.3, tint: '#7a5aa8', contrast: 1.15 });
+    // walls / buildings (texture units: ~40 per tile horizontally, 1 per px vertically)
+    set('townwall', 'medieval_wall_01', 128, { relief: 7 });
+    set('snowwall', 'medieval_wall_01', 128, { relief: 7, sat: 0.3, tint: '#c8d4e8', bright: 1.05 });
+    set('forestwall', 'medieval_wall_01', 128, { relief: 7, tint: '#8a9a6a', sat: 0.6 });
+    set('dwall', 'castle_brick_07', 128, { relief: 8, bright: 0.6, sat: 0.7 });
+    set('twall', 'castle_brick_07', 128, { relief: 8, bright: 0.5, sat: 0.25, tint: '#6a4a9a' });
+    set('plaster', 'plastered_wall_02', 160, { relief: 4, bright: 1.05 });
+    set('wood', 'dark_wooden_planks', 96, { relief: 4, bright: 1.1 });
+    set('roofRed', 'clay_roof_tiles_02', 128, { relief: 8 });
+    set('roofBlue', 'clay_roof_tiles_02', 128, { relief: 8, sat: 0.2, tint: '#5a70b8', bright: 0.9 });
+    set('roofBrown', 'clay_roof_tiles_02', 128, { relief: 8, sat: 0.3, tint: '#a07840' });
+    set('roofMoss', 'clay_roof_tiles_02', 128, { relief: 8, sat: 0.2, tint: '#6a8a4a', bright: 0.9 });
+    set('roofSnow', 'clay_roof_tiles_02', 128, { relief: 8, sat: 0.05, tint: '#f0f4ff', bright: 1.25, contrast: 0.6 });
+    set('bark', 'bark_brown_02', 96, { relief: 6, bright: 0.9 });
+    set('rock', 'lichen_rock', 128, { relief: 7 });
   },
   pat(ctx, name) {
     const k = '_p_' + name;
