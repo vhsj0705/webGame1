@@ -1,0 +1,109 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>잊혀진 왕국 — Phaser RPG</title>
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<div id="game"></div>
+
+<!-- 시작 화면 -->
+<div id="title">
+  <div class="title-box">
+    <div class="kicker">Phaser 3 · Web RPG</div>
+    <h1>잊혀진 왕국</h1>
+    <p class="sub">들판의 슬라임부터 폐허의 고대 리치까지 — 왕국을 되찾으세요.</p>
+    <div class="title-btns">
+      <button id="btn-continue" hidden>이어하기</button>
+      <button id="btn-new">새로 시작</button>
+    </div>
+    <div id="save-info" class="dim"></div>
+    <div class="keys">WASD 이동 · 좌클릭/Space 공격 · 1~4 스킬 · Q/R 물약 · E 대화 · I 가방 · C 캐릭터 · H 도움말</div>
+  </div>
+</div>
+
+<div id="hud" hidden>
+  <div id="vignette"></div>
+
+  <!-- 좌상단: 캐릭터 상태 -->
+  <div id="status">
+    <div class="who"><span class="lvl">Lv <b id="lv">1</b></span> 용사 <span id="pts-badge" class="badge" hidden>능력치!</span></div>
+    <div class="bar hp"><div id="hp-fill" class="fill"></div><span id="hp-txt"></span></div>
+    <div class="bar mp"><div id="mp-fill" class="fill"></div><span id="mp-txt"></span></div>
+    <div class="bar exp"><div id="exp-fill" class="fill"></div><span id="exp-txt"></span></div>
+    <div class="gold-line">● <span id="gold">0</span> G</div>
+  </div>
+
+  <!-- 우상단: 미니맵 + 퀘스트 -->
+  <div id="side">
+    <div id="zone-name"></div>
+    <canvas id="minimap" width="200" height="150"></canvas>
+    <div id="quest"></div>
+  </div>
+
+  <div id="zone-banner"></div>
+  <div id="bossbar" hidden><span>☠ 고대 리치</span><div class="track"><div id="bossbar-fill"></div></div></div>
+
+  <!-- 하단 -->
+  <div id="log"></div>
+  <div id="skills"></div>
+  <div id="menu">
+    <button id="btn-inv" title="가방 (I)">🎒</button>
+    <button id="btn-char" title="캐릭터 (C)">👤</button>
+    <button id="btn-help" title="도움말 (H)">❔</button>
+  </div>
+
+  <!-- 창들 -->
+  <div id="panel-inv" class="panel" hidden>
+    <header>가방 <button data-close>✕</button></header>
+    <div id="equip"></div>
+    <div id="inv-grid"></div>
+    <footer><span id="inv-hint" class="dim"></span><span class="gold">● <span id="inv-gold"></span> G</span></footer>
+  </div>
+
+  <div id="panel-char" class="panel" hidden>
+    <header>캐릭터 <button data-close>✕</button></header>
+    <div class="pts">남은 능력치 포인트: <b id="char-pts">0</b></div>
+    <div id="char-stats"></div>
+    <div id="char-derived"></div>
+  </div>
+
+  <div id="panel-shop" class="panel" hidden>
+    <header>상인 미라의 상점 <button data-close>✕</button></header>
+    <div id="shop-list"></div>
+    <footer class="dim">구매: 클릭 · 가방의 아이템을 클릭하면 판매</footer>
+  </div>
+
+  <div id="panel-dialog" class="panel" hidden>
+    <header><span id="dlg-name"></span> <button data-close>✕</button></header>
+    <div id="dlg-text"></div>
+    <div id="dlg-btns"></div>
+  </div>
+
+  <div id="panel-help" class="panel" hidden>
+    <header>도움말 <button data-close>✕</button></header>
+    <div class="help">
+      <p><b>조작</b><br>WASD/방향키 이동 · 좌클릭(누르고 있기) 또는 Space로 마우스 방향 공격<br>1 회전 베기 · 2 파이어볼(Lv3) · 3 치유(Lv5) · 4 돌진(Lv7)<br>Q 체력 물약 · R 마나 물약 · E NPC와 대화 · I 가방 · C 캐릭터 · Esc 창 닫기</p>
+      <p><b>진행</b><br>마을의 <span class="gold">촌장</span>에게 의뢰를 받고, <span class="gold">상인</span>에게 물약과 장비를 사고, <span class="gold">치유사</span>에게 무료로 회복하세요.<br>초록 들판(슬라임) → 들개 평원 → 고블린 숲 → 저주받은 폐허 → 고대 리치</p>
+      <p><b>장비</b><br>몬스터가 떨어뜨리는 장비는 등급(<span style="color:#e6e6e6">일반</span>·<span style="color:#6aa8ff">마법</span>·<span style="color:#ffd84a">희귀</span>·<span style="color:#ff8a2a">전설</span>)에 따라 랜덤 옵션이 붙습니다.</p>
+      <p class="dim">진행 상황은 15초마다, 그리고 레벨업·퀘스트 완료 때 브라우저에 자동 저장됩니다.</p>
+    </div>
+  </div>
+
+  <div id="death" hidden><div><h2>쓰러졌습니다</h2><p id="death-text"></p><p class="dim">잠시 후 마을에서 부활합니다…</p></div></div>
+  <div id="tooltip" hidden></div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/phaser@3.80.1/dist/phaser.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/easystarjs@0.4.4/bin/easystar-0.4.4.min.js"></script>
+<script src="src/data.js"></script>
+<script src="src/mapgen.js"></script>
+<script src="src/state.js"></script>
+<script src="src/textures.js"></script>
+<script src="src/ui.js"></script>
+<script src="src/game.js"></script>
+<script src="src/main.js"></script>
+</body>
+</html>
